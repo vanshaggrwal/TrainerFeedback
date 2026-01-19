@@ -9,6 +9,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 // Pages
 import { Landing } from "@/pages/Landing";
 import { Login } from "@/pages/Login";
+import { SuperAdminDashboard } from "@/pages/superadmin/SuperAdminDashboard";
 import { AdminDashboard } from "@/pages/admin/AdminDashboard";
 import { HodDashboard } from "@/pages/hod/HodDashboard";
 import { FacultyDashboard } from "@/pages/faculty/FacultyDashboard";
@@ -29,6 +30,9 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/feedback/anonymous" element={<AnonymousFeedback />} />
+
+            {/* Super Admin Route (hidden) */}
+            <Route path="/super-admin" element={<SuperAdminDashboard />} />
 
             {/* Admin Routes */}
             <Route element={<DashboardLayout allowedRoles={['admin']} />}>
