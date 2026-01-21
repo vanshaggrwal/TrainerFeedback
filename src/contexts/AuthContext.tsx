@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { usersApi, User, initializeDemoData } from '@/lib/storage';
+import { usersApi, User, resetDemoData, storage, STORAGE_KEYS, College } from '@/lib/storage';
+
+/* eslint-disable react-refresh/only-export-components */
 
 interface AuthContextType {
   user: User | null;
@@ -15,9 +17,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize demo data on first load
-    initializeDemoData();
-    
+    // Only reset and initialize demo data if no colleges exist (first time setup)
+    const existingColleges = storage.get<College[]>(STORAGE_KEYS.COLLEGES);
+    if (!existingColleges || existingColleges.length === 0) {
+      resetDemoData();
+    }
+
     // Check for existing session
     const currentUser = usersApi.getCurrentUser();
     setUser(currentUser);

@@ -52,9 +52,17 @@ export const Login: React.FC = () => {
   };
 
   const demoCredentials = [
-    { role: 'College Admin', email: 'dean@gryphon.edu', password: 'dean123' },
-    { role: 'HOD', email: 'hod.icem@gryphon.edu', password: 'hod123' },
-    { role: 'Faculty', email: 'faculty1@gryphon.edu', password: 'faculty123' },
+    // ICEM College
+    { role: 'ICEM College Admin', email: 'dean@gryphon.edu', password: 'admin123' },
+    { role: 'ICEM HOD', email: 'hod.icem@gryphon.edu', password: 'hod123' },
+    { role: 'ICEM Faculty', email: 'faculty1@gryphon.edu', password: 'faculty123' },
+    // IGSB College
+    { role: 'IGSB College Admin', email: 'admin.igsb@gryphon.edu', password: 'admin123' },
+    { role: 'IGSB Dean', email: 'dean.igsb@gryphon.edu', password: 'admin123' },
+    { role: 'IGSB HOD', email: 'hod.igsb@gryphon.edu', password: 'hod123' },
+    { role: 'IGSB Faculty', email: 'faculty1.igsb@gryphon.edu', password: 'faculty123' },
+    // System Admin
+    { role: 'System Admin', email: 'superadmin@gryphon.edu', password: 'admin123' },
   ];
 
   const fillCredentials = (email: string, password: string) => {

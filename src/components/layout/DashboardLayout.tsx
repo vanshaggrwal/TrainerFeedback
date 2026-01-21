@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardSidebar } from './DashboardSidebar';
@@ -9,6 +9,7 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ allowedRoles }) => {
   const { user, isLoading } = useAuth();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   if (isLoading) {
     return (
@@ -43,8 +44,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ allowedRoles }
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardSidebar />
-      <main className="pl-64">
+      <DashboardSidebar
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={setIsSidebarCollapsed}
+      />
+      <main className={`transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'pl-16' : 'pl-64'}`}>
         <Outlet />
       </main>
     </div>

@@ -70,10 +70,13 @@ export const Landing: React.FC = () => {
               Secure & Anonymous Feedback Platform
             </div>
 
-            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6 animate-fade-up" style={{ animationDelay: '0.1s' }}>
-              Elevate Teaching Excellence Through
-              <span className="gradient-text"> Meaningful Feedback</span>
-            </h1>
+       <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6 animate-fade-up" style={{ animationDelay: '0.1s' }}>
+  Elevate Teaching Excellence Through
+  <br />
+  <span className="text-white bg-primary rounded-3xl px-4 py-1 mt-4 inline-block">
+    Meaningful Feedback
+  </span>
+</h1>
 
             <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto animate-fade-up" style={{ animationDelay: '0.2s' }}>
               Empower your institution with a comprehensive feedback system that bridges the gap between students and faculty, fostering continuous improvement in education.

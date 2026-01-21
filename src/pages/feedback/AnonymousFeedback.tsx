@@ -1,40 +1,40 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { GraduationCap, ChevronLeft, ChevronRight, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import {
-  accessCodesApi,
+  feedbackSessionsApi,
   facultyApi,
   questionsApi,
   submissionsApi,
-  AccessCode,
+  FeedbackSession,
   Faculty,
   Question,
 } from '@/lib/storage';
 
-type Step = 'access' | 'feedback' | 'success';
+type Step = 'feedback' | 'success';
 
 interface FeedbackResponse {
   questionId: string;
   rating?: number;
   comment?: string;
+  selectValue?: string;
+  booleanValue?: boolean;
 }
 
 export const AnonymousFeedback: React.FC = () => {
-  const [step, setStep] = useState<Step>('access');
-  const [accessCode, setAccessCode] = useState('');
-  const [codeError, setCodeError] = useState('');
-  const [isValidating, setIsValidating] = useState(false);
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const [step, setStep] = useState<Step>('feedback'); // Start directly with feedback
+  const [sessionError, setSessionError] = useState('');
+  const [isValidating, setIsValidating] = useState(true); // Start validating immediately
 
-  const [validatedCode, setValidatedCode] = useState<AccessCode | null>(null);
+  const [validatedSession, setValidatedSession] = useState<FeedbackSession | null>(null);
   const [faculty, setFaculty] = useState<Faculty | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [responses, setResponses] = useState<FeedbackResponse[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -48,8 +48,6 @@ export const AnonymousFeedback: React.FC = () => {
   }, {} as Record<string, Question[]>);
 
   const categories = Object.keys(groupedQuestions);
-  const currentCategory = categories[currentQuestionIndex] || '';
-  const currentCategoryQuestions = groupedQuestions[currentCategory] || [];
 
   // Auto-save every 30 seconds
   useEffect(() => {
@@ -57,14 +55,14 @@ export const AnonymousFeedback: React.FC = () => {
 
     const saveInterval = setInterval(() => {
       localStorage.setItem('ffs_draft_feedback', JSON.stringify({
-        codeId: validatedCode?.id,
+        sessionId: validatedSession?.id,
         responses,
         timestamp: Date.now(),
       }));
     }, 30000);
 
     return () => clearInterval(saveInterval);
-  }, [step, responses, validatedCode?.id]);
+  }, [step, responses, validatedSession?.id]);
 
   // Restore draft on load
   useEffect(() => {
@@ -80,103 +78,121 @@ export const AnonymousFeedback: React.FC = () => {
     }
   }, []);
 
-  const validateAccessCode = async () => {
-    if (!accessCode.trim()) {
-      setCodeError('Please enter an access code');
-      return;
-    }
-
-    setIsValidating(true);
-    setCodeError('');
-
-    try {
-      const code = await accessCodesApi.getByCode(accessCode.trim().toUpperCase());
-
-      if (!code) {
-        setCodeError('Invalid access code. Please check and try again.');
+  // Validate session on mount
+  useEffect(() => {
+    const validateSession = async () => {
+      if (!sessionId) {
+        setSessionError('Invalid session URL. Please check the link and try again.');
+        setIsValidating(false);
         return;
       }
 
-      if (code.used) {
-        setCodeError('This access code has already been used.');
-        return;
+      setIsValidating(true);
+      setSessionError('');
+
+      try {
+        const session = await feedbackSessionsApi.getByUrl(sessionId);
+
+        if (!session) {
+          setSessionError('Invalid session. This feedback link may have expired or been removed.');
+          setIsValidating(false);
+          return;
+        }
+
+        if (!session.isActive) {
+          setSessionError('This feedback session is no longer active.');
+          setIsValidating(false);
+          return;
+        }
+
+        if (new Date(session.expiresAt) < new Date()) {
+          setSessionError('This feedback session has expired.');
+          setIsValidating(false);
+          return;
+        }
+
+        // Get faculty and questions
+        const [allFaculty, qs] = await Promise.all([
+          facultyApi.getByCollege(session.collegeId),
+          questionsApi.getByCollege(session.collegeId),
+        ]);
+
+        const facultyMember = allFaculty.find(f => f.id === session.facultyId);
+
+        if (!facultyMember) {
+          setSessionError('Unable to find faculty information for this session.');
+          setIsValidating(false);
+          return;
+        }
+
+        setValidatedSession(session);
+        setFaculty(facultyMember);
+        setQuestions(qs);
+        setResponses(qs.map(q => ({ questionId: q.id })));
+        setStep('feedback');
+      } catch (error) {
+        setSessionError('An error occurred while loading the session. Please try again later.');
+      } finally {
+        setIsValidating(false);
       }
+    };
 
-      if (new Date(code.expiresAt) < new Date()) {
-        setCodeError('This access code has expired.');
-        return;
-      }
+    validateSession();
+  }, [sessionId]);
 
-      // Get faculty and questions
-      const [allFaculty, qs] = await Promise.all([
-        facultyApi.getByCollege(code.collegeId),
-        questionsApi.getByCollege(code.collegeId),
-      ]);
 
-      const facultyMember = allFaculty.find(f => f.id === code.facultyId);
 
-      if (!facultyMember) {
-        setCodeError('Unable to find faculty information.');
-        return;
-      }
-
-      setValidatedCode(code);
-      setFaculty(facultyMember);
-      setQuestions(qs);
-      setResponses(qs.map(q => ({ questionId: q.id })));
-      setStep('feedback');
-    } catch (error) {
-      setCodeError('An error occurred. Please try again.');
-    } finally {
-      setIsValidating(false);
-    }
-  };
-
-  const updateResponse = useCallback((questionId: string, rating?: number, comment?: string) => {
+  const updateResponse = useCallback((questionId: string, rating?: number, comment?: string, selectValue?: string, booleanValue?: boolean) => {
     setResponses(prev =>
       prev.map(r =>
         r.questionId === questionId
-          ? { ...r, rating: rating ?? r.rating, comment: comment ?? r.comment }
+          ? { 
+              ...r, 
+              rating: rating ?? r.rating, 
+              comment: comment ?? r.comment,
+              selectValue: selectValue ?? r.selectValue,
+              booleanValue: booleanValue ?? r.booleanValue
+            }
           : r
       )
     );
   }, []);
 
   const canProceed = () => {
-    const requiredQuestions = currentCategoryQuestions.filter(q => q.required);
+    const requiredQuestions = questions.filter(q => q.required);
     return requiredQuestions.every(q => {
       const response = responses.find(r => r.questionId === q.id);
-      return response?.rating !== undefined;
+      if (!response) return false;
+      
+      switch (q.responseType) {
+        case 'rating':
+        case 'both':
+          return response.rating !== undefined;
+        case 'text':
+          return response.comment && response.comment.trim() !== '';
+        case 'select':
+          return response.selectValue && response.selectValue.trim() !== '';
+        case 'boolean':
+          return response.booleanValue !== undefined;
+        default:
+          return false;
+      }
     });
   };
 
-  const handleNext = () => {
-    if (currentQuestionIndex < categories.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
-    }
-  };
-
   const handleSubmit = async () => {
-    if (!validatedCode || !faculty) return;
+    if (!validatedSession || !faculty) return;
 
     setIsSubmitting(true);
 
     try {
       await submissionsApi.create({
-        cycleId: validatedCode.cycleId,
+        sessionId: validatedSession.id,
         facultyId: faculty.id,
-        collegeId: validatedCode.collegeId,
-        accessCodeId: validatedCode.id,
-        responses: responses.filter(r => r.rating !== undefined),
+        collegeId: validatedSession.collegeId,
+        responses: responses.filter(r => r.rating !== undefined || r.selectValue || r.booleanValue !== undefined),
       });
 
-      await accessCodesApi.markUsed(validatedCode.id);
       localStorage.removeItem('ffs_draft_feedback');
       setStep('success');
     } catch (error) {
@@ -186,7 +202,7 @@ export const AnonymousFeedback: React.FC = () => {
     }
   };
 
-  const progress = ((currentQuestionIndex + 1) / categories.length) * 100;
+  const progress = (responses.filter(r => r.rating !== undefined || r.selectValue || r.booleanValue !== undefined).length / questions.length) * 100;
 
   return (
     <div className="min-h-screen bg-background">
@@ -206,73 +222,55 @@ export const AnonymousFeedback: React.FC = () => {
       </header>
 
       <main className="container mx-auto px-6 py-12 max-w-2xl">
-        {/* Access Code Step */}
-        {step === 'access' && (
-          <div className="glass-card rounded-xl p-8 animate-fade-up">
-            <div className="text-center mb-8">
-              <h1 className="font-display text-2xl font-bold text-foreground mb-2">
-                Enter Your Access Code
-              </h1>
-              <p className="text-muted-foreground">
-                Enter the unique code provided to submit anonymous feedback
-              </p>
+        {/* Loading State */}
+        {isValidating && (
+          <div className="glass-card rounded-xl p-8 animate-fade-up text-center">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="text-lg font-medium text-foreground">Validating session...</span>
             </div>
-
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="code">Access Code</Label>
-                <Input
-                  id="code"
-                  type="text"
-                  placeholder="e.g., ABC123"
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                  className="h-14 text-center text-2xl tracking-widest font-mono"
-                  maxLength={10}
-                />
-              </div>
-
-              {codeError && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm animate-scale-in">
-                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                  {codeError}
-                </div>
-              )}
-
-              <Button
-                onClick={validateAccessCode}
-                className="w-full h-12 gradient-hero text-primary-foreground hover:opacity-90"
-                disabled={isValidating}
-              >
-                {isValidating ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Validating...
-                  </div>
-                ) : (
-                  'Continue'
-                )}
-              </Button>
-            </div>
-
-            <p className="mt-8 text-center text-sm text-muted-foreground">
-              <Link to="/" className="hover:text-primary transition-colors">
-                ← Back to Home
-              </Link>
+            <p className="text-muted-foreground">
+              Please wait while we verify your feedback link.
             </p>
           </div>
         )}
 
+        {/* Error State */}
+        {sessionError && !isValidating && (
+          <div className="glass-card rounded-xl p-8 animate-fade-up">
+            <div className="text-center mb-6">
+              <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="h-8 w-8 text-destructive" />
+              </div>
+              <h1 className="font-display text-2xl font-bold text-foreground mb-2">
+                Session Error
+              </h1>
+              <p className="text-muted-foreground">
+                {sessionError}
+              </p>
+            </div>
+
+            <div className="text-center">
+              <Link to="/" className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors">
+                <ChevronLeft className="h-4 w-4" />
+                Return to Home
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Feedback Step */}
-        {step === 'feedback' && faculty && (
+        {step === 'feedback' && faculty && !isValidating && (
           <div className="space-y-6 animate-fade-up">
             {/* Progress */}
             <div className="glass-card rounded-xl p-6">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-medium text-foreground">
-                  Step {currentQuestionIndex + 1} of {categories.length}
+                  Overall Progress
                 </span>
-                <span className="text-sm text-muted-foreground">{currentCategory}</span>
+                <span className="text-sm text-muted-foreground">
+                  {responses.filter(r => r.rating !== undefined || r.selectValue || r.booleanValue !== undefined).length} of {questions.length} questions completed
+                </span>
               </div>
               <ProgressBar value={progress} size="md" />
             </div>
@@ -292,104 +290,141 @@ export const AnonymousFeedback: React.FC = () => {
               </div>
             </div>
 
-            {/* Questions */}
-            <div className="glass-card rounded-xl p-6">
-              <h3 className="font-display text-lg font-semibold text-foreground mb-6">
-                {currentCategory}
-              </h3>
+            {/* All Questions */}
+            <div className="space-y-8">
+              {categories.map((category, categoryIndex) => (
+                <div key={category} className="glass-card rounded-xl p-6">
+                  <h3 className="font-display text-lg font-semibold text-foreground mb-6">
+                    {category}
+                  </h3>
 
-              <div className="space-y-8">
-                {currentCategoryQuestions.map((question, index) => {
-                  const response = responses.find(r => r.questionId === question.id);
+                  <div className="space-y-8">
+                    {groupedQuestions[category].map((question, questionIndex) => {
+                      const response = responses.find(r => r.questionId === question.id);
+                      const globalIndex = categories.slice(0, categoryIndex).reduce((acc, cat) => acc + groupedQuestions[cat].length, 0) + questionIndex + 1;
 
-                  return (
-                    <div
-                      key={question.id}
-                      className="space-y-4 animate-fade-up"
-                      style={{ animationDelay: `${index * 0.1}s` }}
-                    >
-                      <div className="flex items-start gap-2">
-                        <span className="text-sm font-medium text-muted-foreground">
-                          {index + 1}.
-                        </span>
-                        <div className="flex-1">
-                          <p className="text-foreground">
-                            {question.text}
-                            {question.required && (
-                              <span className="text-destructive ml-1">*</span>
-                            )}
-                          </p>
+                      return (
+                        <div
+                          key={question.id}
+                          className="space-y-4 animate-fade-up"
+                          style={{ animationDelay: `${questionIndex * 0.05}s` }}
+                        >
+                          <div className="flex items-start gap-2">
+                            <span className="text-sm font-medium text-muted-foreground">
+                              {globalIndex}.
+                            </span>
+                            <div className="flex-1">
+                              <p className="text-foreground">
+                                {question.text}
+                                {question.required && (
+                                  <span className="text-destructive ml-1">*</span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          {(question.responseType === 'rating' || question.responseType === 'both') && (
+                            <div className="flex items-center gap-4 pl-6">
+                              <span className="text-sm text-muted-foreground">Rating:</span>
+                              <RatingStars
+                                value={response?.rating || 0}
+                                onChange={(rating) => updateResponse(question.id, rating)}
+                                size="lg"
+                              />
+                            </div>
+                          )}
+
+                          {question.responseType === 'select' && (
+                            <div className="pl-6">
+                              <Select
+                                value={response?.selectValue || ''}
+                                onValueChange={(value) => updateResponse(question.id, undefined, undefined, value)}
+                              >
+                                <SelectTrigger className="w-full max-w-xs">
+                                  <SelectValue placeholder="Select an option" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {question.options?.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          {question.responseType === 'boolean' && (
+                            <div className="flex items-center gap-6 pl-6">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name={`boolean-${question.id}`}
+                                  value="true"
+                                  checked={response?.booleanValue === true}
+                                  onChange={() => updateResponse(question.id, undefined, undefined, undefined, true)}
+                                  className="w-4 h-4 text-primary"
+                                />
+                                <span className="text-sm">Yes</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name={`boolean-${question.id}`}
+                                  value="false"
+                                  checked={response?.booleanValue === false}
+                                  onChange={() => updateResponse(question.id, undefined, undefined, undefined, false)}
+                                  className="w-4 h-4 text-primary"
+                                />
+                                <span className="text-sm">No</span>
+                              </label>
+                            </div>
+                          )}
+
+                          {(question.responseType === 'text' || question.responseType === 'both') && (
+                            <div className="pl-6">
+                              <Textarea
+                                placeholder="Add a comment (optional)"
+                                value={response?.comment || ''}
+                                onChange={(e) => updateResponse(question.id, undefined, e.target.value)}
+                                className="resize-none"
+                                rows={3}
+                              />
+                            </div>
+                          )}
                         </div>
-                      </div>
-
-                      {(question.responseType === 'rating' || question.responseType === 'both') && (
-                        <div className="flex items-center gap-4 pl-6">
-                          <span className="text-sm text-muted-foreground">Rating:</span>
-                          <RatingStars
-                            value={response?.rating || 0}
-                            onChange={(rating) => updateResponse(question.id, rating)}
-                            size="lg"
-                          />
-                        </div>
-                      )}
-
-                      {(question.responseType === 'text' || question.responseType === 'both') && (
-                        <div className="pl-6">
-                          <Textarea
-                            placeholder="Add a comment (optional)"
-                            value={response?.comment || ''}
-                            onChange={(e) => updateResponse(question.id, undefined, e.target.value)}
-                            className="resize-none"
-                            rows={3}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
 
-            {/* Navigation */}
-            <div className="flex items-center justify-between">
-              <Button
-                variant="outline"
-                onClick={handlePrevious}
-                disabled={currentQuestionIndex === 0}
-                className="gap-2"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-
-              {currentQuestionIndex < categories.length - 1 ? (
-                <Button
-                  onClick={handleNext}
-                  disabled={!canProceed()}
-                  className="gap-2 gradient-hero text-primary-foreground hover:opacity-90"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              ) : (
+            {/* Submit Button */}
+            <div className="glass-card rounded-xl p-6">
+              <div className="text-center">
                 <Button
                   onClick={handleSubmit}
                   disabled={!canProceed() || isSubmitting}
-                  className="gap-2 gradient-hero text-primary-foreground hover:opacity-90"
+                  size="lg"
+                  className="gap-2 gradient-hero text-primary-foreground hover:opacity-90 px-8 py-3"
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Submitting...
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Submitting Feedback...
                     </>
                   ) : (
                     <>
                       Submit Feedback
-                      <Check className="h-4 w-4" />
+                      <Check className="h-5 w-5" />
                     </>
                   )}
                 </Button>
-              )}
+                <p className="text-xs text-muted-foreground mt-2">
+                  Please complete all required questions before submitting
+                </p>
+              </div>
             </div>
           </div>
         )}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +14,8 @@ import {
   GraduationCap,
   UserCheck,
   ClipboardList,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 interface SidebarLink {
@@ -24,7 +26,7 @@ interface SidebarLink {
 
 const adminLinks: SidebarLink[] = [
   { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/admin/cycles', icon: RefreshCw, label: 'Feedback Cycles' },
+  { to: '/admin/sessions', icon: RefreshCw, label: 'Feedback Sessions' },
   { to: '/admin/departments', icon: Building2, label: 'Departments' },
   { to: '/admin/faculty', icon: Users, label: 'Faculty' },
   { to: '/admin/questions', icon: FileQuestion, label: 'Question Bank' },
@@ -44,9 +46,22 @@ const facultyLinks: SidebarLink[] = [
   { to: '/faculty/reports', icon: BarChart3, label: 'Performance Report' },
 ];
 
-export const DashboardSidebar: React.FC = () => {
+interface DashboardSidebarProps {
+  isCollapsed?: boolean;
+  onToggleCollapse?: (collapsed: boolean) => void;
+}
+
+export const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
+  isCollapsed: externalIsCollapsed,
+  onToggleCollapse
+}) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [internalIsCollapsed, setInternalIsCollapsed] = useState(false);
+
+  // Use external state if provided, otherwise use internal state
+  const isCollapsed = externalIsCollapsed !== undefined ? externalIsCollapsed : internalIsCollapsed;
+  const setIsCollapsed = onToggleCollapse || setInternalIsCollapsed;
 
   const handleLogout = () => {
     logout();
@@ -96,33 +111,62 @@ export const DashboardSidebar: React.FC = () => {
   const RoleIcon = getRoleIcon();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 gradient-hero">
+    <aside className={cn(
+      "fixed left-0 top-0 z-40 h-screen gradient-hero transition-all duration-300 ease-in-out",
+      isCollapsed ? "w-16" : "w-64"
+    )}>
       <div className="flex h-full flex-col">
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
-            <GraduationCap className="h-6 w-6 text-sidebar-primary-foreground" />
+        {/* Logo and Toggle */}
+        {isCollapsed ? (
+          <div className="flex flex-col items-center px-4 py-5 border-b border-sidebar-border gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
+              <GraduationCap className="h-6 w-6 text-sidebar-primary-foreground" />
+            </div>
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-sidebar-accent transition-colors duration-200"
+              title="Expand Sidebar"
+            >
+              <ChevronRight className="h-4 w-4 text-sidebar-foreground" />
+            </button>
           </div>
-          <div>
-            <h1 className="font-display text-lg font-semibold text-sidebar-foreground">
-              Gryphon
-            </h1>
-            <p className="text-xs text-sidebar-foreground/70">Feedback System</p>
+        ) : (
+          <div className="flex items-center justify-between px-4 py-5 border-b border-sidebar-border">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
+                <GraduationCap className="h-6 w-6 text-sidebar-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="font-display text-lg font-semibold text-sidebar-foreground">
+                  Gryphon
+                </h1>
+                <p className="text-xs text-sidebar-foreground/70">Feedback System</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-sidebar-accent transition-colors duration-200"
+              title="Collapse Sidebar"
+            >
+              <ChevronLeft className="h-4 w-4 text-sidebar-foreground" />
+            </button>
           </div>
-        </div>
+        )}
 
         {/* User Info */}
-        <div className="px-6 py-4 border-b border-sidebar-border">
+        <div className="px-4 py-4 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-accent">
               <RoleIcon className="h-5 w-5 text-sidebar-accent-foreground" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {user?.name}
-              </p>
-              <p className="text-xs text-sidebar-foreground/70">{getRoleLabel()}</p>
-            </div>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-sidebar-foreground truncate">
+                  {user?.name}
+                </p>
+                <p className="text-xs text-sidebar-foreground/70">{getRoleLabel()}</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -135,14 +179,16 @@ export const DashboardSidebar: React.FC = () => {
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  isCollapsed ? "justify-center px-2" : "",
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                 )
               }
+              title={isCollapsed ? link.label : undefined}
             >
-              <link.icon className="h-5 w-5" />
-              {link.label}
+              <link.icon className="h-5 w-5 flex-shrink-0" />
+              {!isCollapsed && <span>{link.label}</span>}
             </NavLink>
           ))}
         </nav>
@@ -151,10 +197,14 @@ export const DashboardSidebar: React.FC = () => {
         <div className="px-3 py-4 border-t border-sidebar-border">
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-all duration-200"
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-all duration-200",
+              isCollapsed ? "justify-center px-2" : "w-full"
+            )}
+            title={isCollapsed ? "Sign Out" : undefined}
           >
-            <LogOut className="h-5 w-5" />
-            Sign Out
+            <LogOut className="h-5 w-5 flex-shrink-0" />
+            {!isCollapsed && <span>Sign Out</span>}
           </button>
         </div>
       </div>

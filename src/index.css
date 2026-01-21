@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap');
 
 @layer base {
   :root {
@@ -15,25 +15,25 @@
     --popover: 0 0% 100%;
     --popover-foreground: 213 47% 15%;
 
-    --primary: 213 96% 16%;
+    --primary: 213 96% 16%; /* #01224E - Deep Navy Blue */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 20% 96%;
+    --secondary: 0 0% 96%; /* #f5f5f5 - Light Gray */
     --secondary-foreground: 213 47% 15%;
 
-    --muted: 210 20% 96%;
+    --muted: 0 0% 96%;
     --muted-foreground: 215 16% 47%;
 
     --accent: 213 80% 25%;
     --accent-foreground: 0 0% 100%;
 
-    --success: 160 84% 39%;
+    --success: 160 84% 39%; /* #10b981 - Success Green */
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    --warning: 38 92% 50%; /* #f59e0b - Warning Orange */
     --warning-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 60%; /* #ef4444 - Error Red */
     --destructive-foreground: 0 0% 100%;
 
     --border: 214 32% 91%;

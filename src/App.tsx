@@ -10,7 +10,9 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Landing } from "@/pages/Landing";
 import { Login } from "@/pages/Login";
 import { SuperAdminDashboard } from "@/pages/superadmin/SuperAdminDashboard";
-import { AdminDashboard } from "@/pages/admin/AdminDashboard";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import FacultyDetails from "@/pages/admin/FacultyDetails";
+import SessionResponses from "@/pages/admin/SessionResponses";
 import { HodDashboard } from "@/pages/hod/HodDashboard";
 import { FacultyDashboard } from "@/pages/faculty/FacultyDashboard";
 import { AnonymousFeedback } from "@/pages/feedback/AnonymousFeedback";
@@ -29,7 +31,7 @@ const App = () => (
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/feedback/anonymous" element={<AnonymousFeedback />} />
+            <Route path="/feedback/anonymous/:sessionId" element={<AnonymousFeedback />} />
 
             {/* Super Admin Route (hidden) */}
             <Route path="/super-admin" element={<SuperAdminDashboard />} />
@@ -37,9 +39,11 @@ const App = () => (
             {/* Admin Routes */}
             <Route element={<DashboardLayout allowedRoles={['admin']} />}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/cycles" element={<AdminDashboard />} />
+              <Route path="/admin/sessions" element={<AdminDashboard />} />
+              <Route path="/admin/sessions/:sessionId/responses" element={<SessionResponses />} />
               <Route path="/admin/departments" element={<AdminDashboard />} />
               <Route path="/admin/faculty" element={<AdminDashboard />} />
+              <Route path="/admin/faculty-details" element={<FacultyDetails />} />
               <Route path="/admin/questions" element={<AdminDashboard />} />
               <Route path="/admin/reports" element={<AdminDashboard />} />
               <Route path="/admin/settings" element={<AdminDashboard />} />

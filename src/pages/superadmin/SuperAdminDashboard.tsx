@@ -4,8 +4,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   collegesApi,
   usersApi,
+  feedbackSessionsApi,
   College,
   User,
+  FeedbackSession,
   resetDemoData,
 } from '@/lib/storage';
 import {
@@ -18,6 +20,7 @@ import {
   Shield,
   GraduationCap,
   AlertTriangle,
+  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +53,7 @@ export const SuperAdminDashboard: React.FC = () => {
 
   const [colleges, setColleges] = useState<College[]>([]);
   const [admins, setAdmins] = useState<User[]>([]);
+  const [feedbackSessions, setFeedbackSessions] = useState<FeedbackSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // College form state
@@ -76,13 +80,15 @@ export const SuperAdminDashboard: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [collegeList, userList] = await Promise.all([
+      const [collegeList, userList, sessionList] = await Promise.all([
         collegesApi.getAll(),
         usersApi.getAll(),
+        feedbackSessionsApi.getAll(),
       ]);
 
       setColleges(collegeList);
       setAdmins(userList.filter(u => u.role === 'admin'));
+      setFeedbackSessions(sessionList);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -448,6 +454,55 @@ export const SuperAdminDashboard: React.FC = () => {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Feedback Session URLs for Testing */}
+        <div className="mt-8 glass-card rounded-xl p-6 animate-fade-up" style={{ animationDelay: '0.1s' }}>
+          <h3 className="font-display text-lg font-semibold text-foreground mb-4">Demo Feedback Session URLs</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Use these URLs to test the anonymous feedback portal at <code className="bg-secondary px-1 py-0.5 rounded text-xs">/feedback/anonymous/[session-url]</code>
+          </p>
+          {feedbackSessions.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {feedbackSessions.map((session) => (
+                <div key={session.id} className="p-3 rounded-lg bg-secondary/50">
+                  <div className="mb-2">
+                    <p className="font-medium text-sm text-foreground">{session.courseName}</p>
+                    <p className="text-xs text-muted-foreground">{session.batch}</p>
+                  </div>
+                  <div className="mb-2">
+                    <p className="text-xs text-muted-foreground mb-1">Session URL:</p>
+                    <div className="flex items-center gap-2">
+                      <code className="bg-background px-2 py-1 rounded text-xs font-mono break-all flex-1">
+                        /feedback/anonymous/{session.uniqueUrl}
+                      </code>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => window.open(`/feedback/anonymous/${session.uniqueUrl}`, '_blank')}
+                        className="h-8 w-8 p-0"
+                        title="Open in new tab"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      session.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {session.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                    <span className="text-muted-foreground">
+                      Expires: {new Date(session.expiresAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No feedback sessions available</p>
+          )}
         </div>
 
         {/* Demo Credentials Info */}
