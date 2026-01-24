@@ -31,7 +31,7 @@ import FacultyReport from '@/components/admin/FacultyReport';
 import AcademicConfig from '@/components/admin/AcademicConfig';
 import { SessionTable } from '@/components/admin/SessionTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getAcademicConfig } from '@/lib/academicConfig';
+import { getAcademicConfig, AcademicConfigData } from '@/lib/academicConfig';
 import { BarChart3, RefreshCw, Building2, Calendar, Users, FileText, User, TrendingUp, MessageSquare, Plus, Edit, Download, Upload, Trash2, ClipboardCheck, GraduationCap } from 'lucide-react';
 import { format, subDays, isAfter } from 'date-fns';
 import {
@@ -79,9 +79,12 @@ const AdminDashboard = () => {
   // Faculty report state
   const [facultyReportOpen, setFacultyReportOpen] = useState(false);
 
+  // Academic config state
+  const [academicConfigOpen, setAcademicConfigOpen] = useState(false);
+
   // Academic config data state
-  const [courseData, setCourseData] = useState({});
-  const [subjectsData, setSubjectsData] = useState({});
+  const [courseData, setCourseData] = useState<AcademicConfigData['courseData']>({});
+  const [subjectsData, setSubjectsData] = useState<AcademicConfigData['subjectsData']>({});
 
   // Filtering state
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
@@ -205,7 +208,7 @@ const AdminDashboard = () => {
       faculty: filteredFac,
       departments: filteredDepts
     };
-  }, [submissions, faculty, departments, selectedCourse, selectedDepartment, dateRange]);
+  }, [submissions, faculty, departments, selectedCourse, selectedDepartment, dateRange, courseData]);
 
   // Calculate metrics
   const activeSessions = sessions.filter(s => s.isActive);
