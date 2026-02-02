@@ -11,7 +11,8 @@ import {
   getDoc,
   serverTimestamp,
   orderBy,
-  limit
+  limit,
+  onSnapshot
 } from 'firebase/firestore';
 
 const COLLECTION_NAME = 'sessions';
@@ -66,7 +67,7 @@ export const createSession = async (sessionData) => {
       questions,
       projectId,
       status: 'active',
-      templateId: 'generated-template-id', // Placeholder
+      templateId: sessionData.templateId || null,
       expiresAt: expiryDate.toISOString(),
       createdAt: serverTimestamp()
     });
@@ -139,4 +140,56 @@ export const getSessionById = async (id) => {
     console.error('Error getting session:', error);
     throw error;
   }
+};
+
+/**
+ * Close a session and compile all response statistics
+ * This stores the compiled stats in the session document itself
+ * @param {string} id - Session ID
+ * @returns {Promise<Object>} - Updated session with compiled stats
+ */
+export const closeSessionWithStats = async (id) => {
+  try {
+    // Import compileSessionStats dynamically to avoid circular dependency
+    const { compileSessionStats } = await import('./responseService');
+    
+    // Compile statistics from all responses
+    const compiledStats = await compileSessionStats(id);
+    
+    // Update session with status and compiled stats
+    const docRef = doc(db, COLLECTION_NAME, id);
+    await updateDoc(docRef, {
+      status: 'inactive',
+      compiledStats,
+      closedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    
+    return { id, status: 'inactive', compiledStats };
+  } catch (error) {
+    console.error('Error closing session with stats:', error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to real-time session updates
+ * @param {Function} callback - Callback function receiving updated sessions array
+ * @returns {Function} - Unsubscribe function
+ */
+export const subscribeToSessions = (callback) => {
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    orderBy('createdAt', 'desc')
+  );
+  
+  return onSnapshot(q, (snapshot) => {
+    const sessions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    callback(sessions);
+  }, (error) => {
+    console.error('Error in sessions subscription:', error);
+  });
 };
